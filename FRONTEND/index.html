@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📋 API de Tareas</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a2e;
+            color: #333;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 700px; margin: 0 auto; }
+        h1 { color: #fff; text-align: center; margin-bottom: 25px; }
+        
+        .card {
+            background: #fff;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .form-group { margin-bottom: 15px; }
+        .full-width { grid-column: span 2; }
+        
+        label { display: block; margin-bottom: 8px; font-weight: 600; color: #555; }
+        
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            background-color: #f9f9f9;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #4CAF50;
+            background-color: #fff;
+        }
+
+        .btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            color: white;
+            transition: opacity 0.2s;
+        }
+        .btn:hover { opacity: 0.9; }
+        .btn-crear { background: #4CAF50; width: 100%; margin-top: 10px; }
+        .btn-eliminar { 
+            background: #ff5252; 
+            padding: 8px 15px;
+            font-size: 14px;
+        }
+        
+        .item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            background: #f8f9fa;
+            border-left: 5px solid #ddd;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            transition: transform 0.2s;
+        }
+        .item:hover { transform: translateY(-2px); box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        
+        /* Colores según prioridad */
+        .prioridad-alta { border-left-color: #ff5252; }
+        .prioridad-media { border-left-color: #ff9800; }
+        .prioridad-baja { border-left-color: #4CAF50; }
+
+        .item-info { flex: 1; }
+        .item-titulo { 
+            font-weight: bold; 
+            font-size: 18px; 
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+        .item-desc { color: #666; font-size: 14px; margin-bottom: 8px; }
+        
+        .badges { display: flex; gap: 10px; font-size: 12px; }
+        .badge {
+            padding: 4px 10px;
+            border-radius: 20px;
+            background: #e0e0e0;
+            color: #555;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+        
+        .vacio { text-align: center; color: #999; padding: 40px; font-style: italic; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 API de Tareas</h1>
+
+        <div class="card">
+            <div class="form-grid">
+                <div class="form-group full-width">
+                    <label>Título de la Tarea</label>
+                    <input type="text" id="titulo" placeholder="Ej: Estudiar Go">
+                </div>
+
+                <div class="form-group full-width">
+                    <label>Descripción</label>
+                    <input type="text" id="descripcion" placeholder="Detalles de la tarea...">
+                </div>
+
+                <div class="form-group">
+                    <label>Estado</label>
+                    <select id="estado">
+                        <option value="pendiente">Pendiente</option>
+                        <option value="en_progreso">En Progreso</option>
+                        <option value="completada">Completada</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Prioridad</label>
+                    <select id="prioridad">
+                        <option value="baja">Baja 🟢</option>
+                        <option value="media" selected>Media 🟠</option>
+                        <option value="alta">Alta 🔴</option>
+                    </select>
+                </div>
+            </div>
+
+            <button class="btn btn-crear" onclick="crear()">➕ Agregar Tarea</button>
+        </div>
+
+        <div class="card">
+            <h3>Lista de Tareas</h3>
+            <br>
+            <div id="lista">
+                <div class="vacio">Cargando tareas...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // =============================================
+        // URL DE TU API (PUERTO 8001)
+        // =============================================
+        const API_URL = 'http://localhost:8001/api/v1/tareas';
+
+        // CARGAR TODOS
+        async function cargar() {
+            try {
+                const response = await fetch(API_URL);
+                const datos = await response.json();
+                mostrar(datos);
+            } catch (error) {
+                console.error(error);
+                document.getElementById('lista').innerHTML = 
+                    '<div class="vacio">❌ Error al conectar con el servidor (Revisa si el Go está corriendo)</div>';
+            }
+        }
+
+        // MOSTRAR EN PANTALLA
+        function mostrar(datos) {
+            const lista = document.getElementById('lista');
+            
+            if (!datos || datos.length === 0) {
+                lista.innerHTML = '<div class="vacio">📭 No hay datos registrados</div>';
+                return;
+            }
+
+            // Mapeamos tus datos (Task) al HTML
+            lista.innerHTML = datos.map(task => `
+                <div class="item prioridad-${task.prioridad}">
+                    <div class="item-info">
+                        <div class="item-titulo">${task.titulo}</div>
+                        <div class="item-desc">${task.descripcion || 'Sin descripción'}</div>
+                        <div class="badges">
+                            <span class="badge">📌 ${task.estado}</span>
+                            <span class="badge">⚡ ${task.prioridad}</span>
+                            <span class="badge">#${task.id}</span>
+                        </div>
+                    </div>
+                    <button class="btn btn-eliminar" onclick="eliminar(${task.id})">🗑️ Borrar</button>
+                </div>
+            `).join('');
+        }
+
+        // CREAR NUEVO
+        async function crear() {
+            // 1. Obtener valores del formulario
+            const titulo = document.getElementById('titulo').value;
+            const descripcion = document.getElementById('descripcion').value;
+            const estado = document.getElementById('estado').value;
+            const prioridad = document.getElementById('prioridad').value;
+
+            // 2. Validar
+            if (!titulo.trim()) {
+                alert('El título es obligatorio');
+                return;
+            }
+
+            try {
+                // 3. Enviar JSON al Backend
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        titulo: titulo,
+                        descripcion: descripcion,
+                        estado: estado,
+                        prioridad: prioridad
+                    })
+                });
+
+                if (response.ok) {
+                    // Limpiar inputs
+                    document.getElementById('titulo').value = '';
+                    document.getElementById('descripcion').value = '';
+                    // Recargar lista
+                    cargar();
+                } else {
+                    const error = await response.json();
+                    alert('Error: ' + (error.error || 'No se pudo crear'));
+                }
+            } catch (error) {
+                alert('Error de conexión');
+            }
+        }
+
+        // ELIMINAR
+        async function eliminar(id) {
+            if (!confirm('¿Estás seguro de eliminar esta tarea?')) return;
+
+            try {
+                await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
+                cargar();
+            } catch (error) {
+                alert('Error al eliminar');
+            }
+        }
+
+        // CARGAR AL INICIAR
+        cargar();
+    </script>
+</body>
+</html>
